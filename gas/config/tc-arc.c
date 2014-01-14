@@ -69,12 +69,6 @@ static valueT md_chars_to_number (char *, int);
 static void arc_common (int);
 /* Commented out because it triggers error regarding invalid storage class,
    and it is not needed. */
-/* static void arc_handle_extinst (int); */
-/* Commented out because it triggers error regarding invalid storage class,
-   and with reordering it is not needed. */
-/* static void arc_extinst (int); */
-/* Commented out because it triggers error regarding invalid storage class,
-   and it is not needed. */
 /* static void arc_extoper (int); */
 static void arc_option (int);
 static int  arc_get_sda_reloc (arc_insn, int);
@@ -158,7 +152,7 @@ static int byte_order = DEFAULT_BYTE_ORDER;
 static segT arcext_section;
 
 /* One of bfd_mach_arc_n.  */
-static int arc_mach_type = bfd_mach_arc_a4;
+static int arc_mach_type = bfd_mach_arc_a5;
 
 /* Non-zero if the cpu type has been explicitly specified.  */
 static int mach_type_specified_p = 0;
@@ -307,10 +301,7 @@ struct option md_longopts[] =
 size_t md_longopts_size = sizeof (md_longopts);
 
 #define IS_SYMBOL_OPERAND(o) \
- ((arc_mach_a4 && \
-   ((o) == 'b' || (o) == 'c' || (o) == 's' || (o) == 'o' || (o) == 'O')) || \
-  (!arc_mach_a4 && \
-   ((o) == 'g' || (o) == 'o' || (o) == 'M' || (o) == 'O' || (o) == 'R')))
+   ((o) == 'g' || (o) == 'o' || (o) == 'M' || (o) == 'O' || (o) == 'R')
 
 typedef enum
   {
@@ -818,34 +809,27 @@ md_parse_option (int c, char *arg)
   switch (c)
     {
     case OPTION_A4:
-      cpu_flags = E_ARC_MACH_A4;
-      mach_type_specified_p = 1;
-      arc_mach_type = bfd_mach_arc_a4;
-      arc_mach_a4= 1;
+      as_warn(_("Obsolete option mA4"));
       break;
     case OPTION_A5:
       cpu_flags = E_ARC_MACH_A5;
       mach_type_specified_p = 1;
       arc_mach_type = bfd_mach_arc_a5;
-      arc_mach_a4= 0;
       break;
     case OPTION_ARC600:
       cpu_flags = E_ARC_MACH_ARC600;
       mach_type_specified_p = 1;
       arc_mach_type = bfd_mach_arc_arc600;
-      arc_mach_a4= 0;
       break;
     case OPTION_ARC601:
       cpu_flags = E_ARC_MACH_ARC601;
       mach_type_specified_p = 1;
       arc_mach_type = bfd_mach_arc_arc601;
-      arc_mach_a4= 0;
       break;
     case OPTION_ARC700:
       cpu_flags = E_ARC_MACH_ARC700;
       mach_type_specified_p = 1;
       arc_mach_type = bfd_mach_arc_arc700;
-      arc_mach_a4= 0;
       break;
     case OPTION_ARCHS:
       cpu_flags = EF_ARC_CPU_ARCV2HS;
@@ -857,7 +841,6 @@ md_parse_option (int c, char *arg)
       cpu_flags = EF_ARC_CPU_ARCV2EM;
       mach_type_specified_p = 1;
       arc_mach_type = bfd_mach_arc_arcv2;
-      arc_mach_a4= 0;
       break;
     case OPTION_MCPU:
       if (arg == NULL)
@@ -985,7 +968,7 @@ ARC Options:\n\
   -mEM|-mav2em            select ARCv2 EM processor variant\n\
   -mHS|-mav2hs            select ARCv2 HS processor variant\n\
   -EB                     assemble code for a big endian cpu\n\
-  -EL                     assemble code for a little endian cpu\n", arc_mach_type + 5);
+  -EL                     assemble code for a little endian cpu\n", arc_mach_type + 4);
 }
 
 /* Extension library support. */
@@ -1119,10 +1102,6 @@ arc_process_extinstr_options (void)
 
   switch (arc_mach_type)
     {
-    case bfd_mach_arc_a4:
-      strcpy (temp, "__A4__");
-      break;
-
     case bfd_mach_arc_a5:
       strcpy (temp, "__A5__");
       break;
@@ -1272,6 +1251,8 @@ arc_process_extinstr_options (void)
 void
 md_begin (void)
 {
+  arc_mach_a4 = 0;
+
   /* The endianness can be chosen "at the factory".  */
   target_big_endian = byte_order == BIG_ENDIAN;
 
@@ -1966,229 +1947,6 @@ arc_extoper (int opertype)
   /* Enter all registers into the symbol table.  */
 
   demand_empty_rest_of_line ();
-}
-
-/* There are two functions which handle the parsing and encoding of the
-   .extinstruction directive.  This function basically chooses between the two
-   functions.  */
-
-static void
-arc_extinst (int ignore ATTRIBUTE_UNUSED)
-{
-  char syntax[129];
-  char *name;
-  char *p;
-  char c;
-  int suffixcode = -1;
-  int opcode, subopcode;
-  int i;
-  int class = 0;
-  int name_len;
-  struct arc_opcode *ext_op;
-
-  segT old_sec;
-  int old_subsec;
-
-  name = input_line_pointer;
-  c = get_symbol_end ();
-  name = xstrdup (name);
-  strcpy (syntax, name);
-  name_len = strlen (name);
-
-  /* just after name is now '\0'  */
-  p = input_line_pointer;
-  *p = c;
-
-  SKIP_WHITESPACE ();
-
-  if (*input_line_pointer != ',')
-    {
-      as_bad ("expected comma after operand name");
-      ignore_rest_of_line ();
-      return;
-    }
-
-  input_line_pointer++;		/* skip ','  */
-  opcode = get_absolute_expression ();
-
-  SKIP_WHITESPACE ();
-
-  if (*input_line_pointer != ',')
-    {
-      as_bad ("expected comma after opcode");
-      ignore_rest_of_line ();
-      return;
-    }
-
-  input_line_pointer++;		/* skip ','  */
-  subopcode = get_absolute_expression ();
-
-  if (subopcode < 0)
-    {
-      as_bad ("negative subopcode %d", subopcode);
-      ignore_rest_of_line ();
-      return;
-    }
-
-  if (subopcode)
-    {
-      if (3 != opcode)
-	{
-	  as_bad ("subcode value found when opcode not equal 0x03");
-	  ignore_rest_of_line ();
-	  return;
-	}
-      else
-	{
-	  if (subopcode < 0x09 || subopcode > 0x3f)
-	    {
-	      as_bad ("invalid subopcode %d", subopcode);
-	      ignore_rest_of_line ();
-	      return;
-	    }
-	}
-    }
-
-  SKIP_WHITESPACE ();
-
-  if (*input_line_pointer != ',')
-    {
-      as_bad ("expected comma after subopcode");
-      ignore_rest_of_line ();
-      return;
-    }
-
-  input_line_pointer++;		/* skip ','  */
-
-  for (i = 0; i < (int) MAXSUFFIXCLASS; i++)
-    {
-      if (!strncmp (suffixclass[i].name,input_line_pointer, suffixclass[i].len))
-	{
-	  suffixcode = i;
-	  input_line_pointer += suffixclass[i].len;
-	  break;
-	}
-    }
-
-  if (-1 == suffixcode)
-    {
-      as_bad ("invalid suffix class");
-      ignore_rest_of_line ();
-      return;
-    }
-
-  SKIP_WHITESPACE ();
-
-  if (*input_line_pointer != ',')
-    {
-      as_bad ("expected comma after suffix class");
-      ignore_rest_of_line ();
-      return;
-    }
-
-  input_line_pointer++;		/* skip ','  */
-
-  for (i = 0; i < (int) MAXSYNTAXCLASS; i++)
-    {
-      if (!strncmp (syntaxclass[i].name,input_line_pointer, syntaxclass[i].len))
-	{
-	  class = syntaxclass[i].class;
-	  input_line_pointer += syntaxclass[i].len;
-	  break;
-	}
-    }
-
-  if (0 == (SYNTAX_VALID & class))
-    {
-      as_bad ("invalid syntax class");
-      ignore_rest_of_line ();
-      return;
-    }
-
-  if ((0x3 == opcode) & (class & SYNTAX_3OP))
-    {
-      as_bad ("opcode 0x3 and SYNTAX_3OP invalid");
-      ignore_rest_of_line ();
-      return;
-    }
-
-  switch (suffixcode)
-    {
-    case 0:
-      strcat (syntax, "%.q%.f ");
-      break;
-    case 1:
-      strcat (syntax, "%.f ");
-      break;
-    case 2:
-      strcat (syntax, "%.q ");
-      break;
-    case 3:
-      strcat (syntax, " ");
-      break;
-    default:
-      as_bad ("unknown suffix class");
-      ignore_rest_of_line ();
-      return;
-      break;
-    };
-
-  strcat (syntax, ((opcode == 0x3) ? "%a,%b" : ((class & SYNTAX_3OP) ? "%a,%b,%c" : "%b,%c")));
-  if (suffixcode < 2)
-    strcat (syntax, "%F");
-  strcat (syntax, "%S%L");
-
-  ext_op = xmalloc (sizeof (struct arc_opcode));
-  ext_op->syntax = (unsigned char *) xstrdup (syntax);
-
-  ext_op->mask  = I (-1) | ((0x3 == opcode) ? C (-1) : 0);
-  ext_op->value = I (opcode) | ((0x3 == opcode) ? C (subopcode) : 0);
-
-  if (class == (SYNTAX_2OP|OP1_IMM_IMPLIED|SYNTAX_VALID))
-    ext_op->value |= A (0x3f);
-
-  ext_op->flags = class;
-  ext_op->next_asm = arc_ext_opcodes;
-  ext_op->next_dis = arc_ext_opcodes;
-  arc_ext_opcodes = ext_op;
-
-  /* OK, now that we know what this inst is, put a description in the
-     arc extension section of the output file.  */
-
-  old_sec    = now_seg;
-  old_subsec = now_subseg;
-
-  arc_set_ext_seg (EXT_INSTRUCTION,
-		   class & (SYNTAX_3OP | SYNTAX_2OP | SYNTAX_1OP | SYNTAX_NOP),
-		   opcode, subopcode);
-
-  p = frag_more (1);
-  *p = 5 + name_len + 1;
-  p = frag_more (1);
-  *p = EXT_INSTRUCTION;
-  p = frag_more (1);
-  *p = opcode;
-  p = frag_more (1);
-  *p = subopcode;
-  p = frag_more (1);
-  *p = (class & (OP1_MUST_BE_IMM | OP1_IMM_IMPLIED) ? IGNORE_FIRST_OPD : 0);
-  p = frag_more (name_len);
-  strncpy (p, syntax, name_len);
-  p = frag_more (1);
-  *p = '\0';
-
-  subseg_set (old_sec, old_subsec);
-
-  demand_empty_rest_of_line ();
-}
-
-static void
-arc_handle_extinst (int ignore)
-{
-  if (arc_mach_a4)
-    arc_extinst (ignore);
-  else
-    arc_ac_extinst (ignore);
 }
 
 /*********************************************************************/
@@ -4206,9 +3964,9 @@ arc_option (int ignore ATTRIBUTE_UNUSED)
   if (!mach_type_specified_p)
     {
 	arc_mach_type = mach;
-	arc_mach_a4 = (mach == bfd_mach_arc_a4);
-	arc_opcode_init_tables (arc_get_opcode_mach (arc_flags ? arc_flags : mach,
-						     target_big_endian));
+	if (mach == bfd_mach_arc_a4)
+	  as_bad (_("Support for Arctangent-A4 has been removed"));
+	arc_opcode_init_tables (arc_get_opcode_mach (mach, target_big_endian));
 
       if (!bfd_set_arch_mach (stdoutput, bfd_arch_arc, mach))
 	as_fatal ("could not set architecture and machine");
@@ -4390,44 +4148,6 @@ md_convert_frag (bfd *abfd ATTRIBUTE_UNUSED,
   as_fatal (_("md_convert_frag\n"));
 }
 
-static void
-arc_code_symbol (expressionS *expressionP)
-{
-  if (expressionP->X_op == O_symbol && expressionP->X_add_number == 0)
-    {
-      expressionS two;
-
-      expressionP->X_op = O_right_shift;
-
-      /* Explicitly make normal symbols constant but assume local symbols as
-       * constants anyway (I guess that is a safe enough assumption). */
-      if(expressionP->X_add_symbol->bsym)
-	  expressionP->X_add_symbol->sy_value.X_op = O_constant;
-
-      two.X_op = O_constant;
-      two.X_add_symbol = two.X_op_symbol = NULL;
-      two.X_add_number = 2;
-      expressionP->X_op_symbol = make_expr_symbol (&two);
-    }
-  /* Allow %st(sym1-sym2)  */
-  else if (expressionP->X_op == O_subtract
-	   && expressionP->X_add_symbol != NULL
-	   && expressionP->X_op_symbol != NULL
-	   && expressionP->X_add_number == 0)
-    {
-      expressionS two;
-
-      expressionP->X_add_symbol = make_expr_symbol (expressionP);
-      expressionP->X_op = O_right_shift;
-      two.X_op = O_constant;
-      two.X_add_symbol = two.X_op_symbol = NULL;
-      two.X_add_number = 2;
-      expressionP->X_op_symbol = make_expr_symbol (&two);
-    }
-  else
-    as_bad ("expression too complex code symbol");
-}
-
 /* Parse an operand that is machine-specific.
 
    The ARC has a special %-op to adjust addresses so they're usable in
@@ -4446,32 +4166,6 @@ md_operand (expressionS *expressionP)
   switch(*p)
     {
     case '%':
-      if (strncmp (p, "%st(", 4) == 0)
-	{
-	  input_line_pointer += 4;
-
-	  /* Resetting assembling_instruction before calling
-	     expression so that arc_parse_name won't evaluate a name
-	     to be a register.  Here the name assembling_instruction
-	     seems like a misnomer. */
-
-	  assembling_instruction = 0;
-	  expression (expressionP);
-	  assembling_instruction = 1;
-
-	  if (*input_line_pointer != ')')
-	    {
-	      as_bad ("missing ')' in %%-op");
-	      return;
-	    }
-	  if (arc_mach_type != bfd_mach_arc_a4)
-	    {
-	      as_bad ("%%st directive allowed only in case of ARCtangent A4");
-	    }
-	  ++input_line_pointer;
-	  arc_code_symbol (expressionP);
-	}
-      else
 	{
 	  /* It could be a register.  */
 	  int i, l;
@@ -4606,29 +4300,16 @@ md_undefined_symbol (char *name ATTRIBUTE_UNUSED)
 
 /* Parse a .byte, .word, etc. expression.
 
-   Values for the status register are specified with %st(label).
-   `label' will be right shifted by 2.  */
+   ??? Not sure if TC_CONS_EXPRESSION is still wanted.  We originally
+   defined this to process Arctangent-A4 specific constructs.
+   The remaining difference to the default TC_CONS_EXPRESSION
+   is that expr is called with expr_evaluate, not expr_normal.  */
 
 void
 arc_parse_cons_expression (expressionS *exp,
 			   unsigned int nbytes ATTRIBUTE_UNUSED)
 {
-  char *p = input_line_pointer;
-  int code_symbol_fix = 0;
-
-  for (; ! is_end_of_line[(unsigned char) *p]; p++)
-    if (*p == '@' && !strncmp (p, "@h30", 4) && p != input_line_pointer)
-      {
-	code_symbol_fix = 1;
-	strcpy (p, ";   ");
-      }
   expression_and_evaluate (exp);
-
-  if (code_symbol_fix)
-    {
-      arc_code_symbol (exp);
-      input_line_pointer = p;
-    }
 }
 
 /* Record a fixup for a cons expression.  */
@@ -4670,13 +4351,9 @@ md_pcrel_from_section (fixS *fixP, segT sec)
       return 0;
     }
 
-  /* Return the address of the delay slot for ARCtangent-A4 architecture.
-     For ARCtangent-A5 and higher variants (which implement ARCompact ISA),
-     return the address of the current instruction */
-  if (arc_mach_type == bfd_mach_arc_a4)
-    return fixP->fx_frag->fr_address + fixP->fx_where + fixP->fx_size;
-  else
-    return (fixP->fx_frag->fr_address + fixP->fx_where) & ~0x3;
+  /* Return the value that will be seen at run time in pcl, which is the
+     address of the current instruction masked with ~3.  */
+  return (fixP->fx_frag->fr_address + fixP->fx_where) & ~0x3;
 }
 
 /* Get the relocation for the sda symbol reference in insn */
@@ -4789,46 +4466,26 @@ md_apply_fix (fixS *fixP, valueT *valueP, segT seg ATTRIBUTE_UNUSED)
 	  /* Fetch the instruction, insert the fully resolved operand
 	     value, and stuff the instruction back again.  */
 	  where = fixP->fx_frag->fr_literal + fixP->fx_where;
-	  if (arc_mach_a4)
+	  switch (fixP->fx_size)
 	    {
-	      if (target_big_endian)
-		insn = bfd_getb32 ((unsigned char *) where);
-	      else
-		insn = bfd_getl32 ((unsigned char *) where);
-	    }
-	  else
-	    {
-	      switch (fixP->fx_size)
-		{
-		case 2:
-		  insn = md_chars_to_number (buf, fixP->fx_size);
-		  break;
-		case 4:
-		  insn = md_chars_to_number (buf, - fixP->fx_size);
-		  break;
-		}
+	    case 2:
+	      insn = md_chars_to_number (buf, fixP->fx_size);
+	      break;
+	    case 4:
+	      insn = md_chars_to_number (buf, - fixP->fx_size);
+	      break;
 	    }
 
 	  insn = arc_insert_operand (insn, 0, operand, -1, NULL, (offsetT) value,
 				     fixP->fx_file, fixP->fx_line);
-	  if (arc_mach_a4)
+	  switch (fixP->fx_size)
 	    {
-	      if (target_big_endian)
-		bfd_putb32 ((bfd_vma) insn, (unsigned char *) where);
-	      else
-		bfd_putl32 ((bfd_vma) insn, (unsigned char *) where);
-	    }
-	  else
-	    {
-	      switch (fixP->fx_size)
-		{
-		case 2:
-		  md_number_to_chars (buf, insn, fixP->fx_size);
-		  break;
-		case 4:
-		  md_number_to_chars (buf, insn, - fixP->fx_size);
-		  break;
-		}
+	    case 2:
+	      md_number_to_chars (buf, insn, fixP->fx_size);
+	      break;
+	    case 4:
+	      md_number_to_chars (buf, insn, - fixP->fx_size);
+	      break;
 	    }
 	   return;
 	}
@@ -4847,30 +4504,16 @@ md_apply_fix (fixS *fixP, valueT *valueP, segT seg ATTRIBUTE_UNUSED)
 	 implicit addends the addend must be inserted into the instruction,
 	 however, the opcode insertion routines currently do nothing with
 	 limm values.  */
-      if (arc_mach_a4 && (operand->fmt == 'B'))
-	{
-	  gas_assert ((operand->flags & ARC_OPERAND_RELATIVE_BRANCH) != 0
-		  && operand->bits == 20
-		  && operand->shift == 7);
-	  fixP->fx_r_type = BFD_RELOC_ARC_B22_PCREL;
-	}
-      else if (arc_mach_a4 && (operand->fmt == 'J'))
-	{
-	  gas_assert ((operand->flags & ARC_OPERAND_ABSOLUTE_BRANCH) != 0
-		  && operand->bits == 24
-		  && operand->shift == 32);
-	  fixP->fx_r_type = BFD_RELOC_ARC_B26;
-	}
-      else if (operand->fmt == 'L')
+      if (operand->fmt == 'L')
 	{
 	  gas_assert ((operand->flags & ARC_OPERAND_LIMM) != 0
 		  && operand->bits == 32
 		  && operand->shift == 32);
-	  fixP->fx_r_type = (arc_mach_a4) ? BFD_RELOC_32 : BFD_RELOC_ARC_32_ME;
+	  fixP->fx_r_type = BFD_RELOC_ARC_32_ME;
 	}
       /* ARCtangent-A5 21-bit (shift by 2) PC-relative relocation. Used for
 	 bl<cc> instruction */
-      else if (!arc_mach_a4 && (operand->fmt == 'h'))
+      else if (operand->fmt == 'h')
 	{
 	  gas_assert ((operand->flags & ARC_OPERAND_RELATIVE_BRANCH) != 0
 		  && operand->bits == 19
@@ -4879,7 +4522,7 @@ md_apply_fix (fixS *fixP, valueT *valueP, segT seg ATTRIBUTE_UNUSED)
 	}
       /* ARCtangent-A5 25-bit (shift by 2) PC-relative relocation. Used for
 	 'bl' instruction. */
-      else if (!arc_mach_a4 && (operand->fmt == 'H'))
+      else if (operand->fmt == 'H')
 	{
 	  gas_assert ((operand->flags & ARC_OPERAND_RELATIVE_BRANCH) != 0
 		  && operand->bits == 23
@@ -4888,7 +4531,7 @@ md_apply_fix (fixS *fixP, valueT *valueP, segT seg ATTRIBUTE_UNUSED)
 	}
       /* ARCtangent-A5 21-bit (shift by 1) PC-relative relocation. Used for
 	 'b<cc>' instruction. */
-      else if (!arc_mach_a4 && (operand->fmt == 'i'))
+      else if (operand->fmt == 'i')
 	{
 	  gas_assert ((operand->flags & ARC_OPERAND_RELATIVE_BRANCH) != 0
 		  && operand->bits == 20
@@ -4897,14 +4540,14 @@ md_apply_fix (fixS *fixP, valueT *valueP, segT seg ATTRIBUTE_UNUSED)
 	}
       /* ARCtangent-A5 25-bit (shift by 1) PC-relative relocation. Used for
 	 unconditional branch ('b') instruction.  */
-      else if (!arc_mach_a4 && (operand->fmt == 'I'))
+      else if (operand->fmt == 'I')
 	{
 	  gas_assert ((operand->flags & ARC_OPERAND_RELATIVE_BRANCH) != 0
 		  && operand->bits == 24
 		  && operand->shift == 17);
 	  fixP->fx_r_type = BFD_RELOC_ARC_S25H_PCREL;
 	}
-      else if (!arc_mach_a4 && (operand->fmt == 'W'))
+      else if (operand->fmt == 'W')
 	{
 	  gas_assert ((operand->flags & ARC_OPERAND_RELATIVE_BRANCH) != 0
 		  && operand->bits == 11
@@ -5069,7 +4712,7 @@ const pseudo_typeS md_pseudo_table[] =
   { "extcondcode", arc_extoper, 0 },
   { "extcoreregister", arc_extoper, 1 },
   { "extauxregister", arc_extoper, 2 },
-  { "extinstruction", arc_handle_extinst, 0 },
+  { "extinstruction", arc_ac_extinst, 0 },
   { NULL, 0, 0 },
 };
 
@@ -5905,7 +5548,8 @@ printf(" syn=%s str=||%s||insn=%x\n",syn,str,insn);//ejm
 		break;
 
 	      /* Verify the input for the special operands for ARCompact ISA */
-	      if (!arc_mach_a4)
+	      /* FIXME: clean up.  */
+	      if (1)
 		{
 		  switch (operand->fmt)
 		    {
@@ -5993,7 +5637,7 @@ printf(" syn=%s str=||%s||insn=%x\n",syn,str,insn);//ejm
 		    } /* end switch(operand->fmt) */
 		  if (match_failed)
 		    break;
-		} /* end if(!arc_mach_a4) */
+		} /* end if (1) */
 
 	      {
 		/* Parse the operand.  */
@@ -6019,7 +5663,8 @@ printf(" syn=%s str=||%s||insn=%x\n",syn,str,insn);//ejm
 		  value = exp.X_add_number;
 		  /* Ensure that the constant value is within the
 		     operand's limit, for ARCompact ISA */
-		  if (!arc_mach_a4)
+		  /* FIXME: clean up.  */
+		  if (1)
 		    {
 		      /* Try next insn syntax, if the current operand being
 			 matched is not a constant operand */
@@ -6306,25 +5951,28 @@ printf(" syn=%s str=||%s||insn=%x\n",syn,str,insn);//ejm
 
 		      if (match_failed)
 			break;
-		    } /* end if(!arc_mach_a4) */
+		    } /* end if (1) */
 		} /* else if(exp.X_op==O_constant ) */
 
-	      /* For ARCompact ISA, try next insn syntax if the input operand
+	      /* Try next insn syntax if the input operand
 		 is a symbol but the current operand being matched is not a
 		 symbol operand */
-	      else if (!arc_mach_a4 && (exp.X_op == O_symbol)
-		       && !ac_symbol_operand (operand))
+	      else if (exp.X_op == O_symbol && !ac_symbol_operand (operand))
 		{
 		  break;
 		}
 
-	      /* For ARCompact ISA, try next insn syntax if "%st" operand is
+	      /* Try next insn syntax if "%st" operand is
 		 not being matched with long-immediate operand */
-	      else if (!arc_mach_a4 && (exp.X_op == O_right_shift)
-		       && (operand->fmt != 'L'))
+	      /* FIXME: just as bad (and essentially the same) as the next
+		 hack, even though triggered less often.  */
+	      else if (exp.X_op == O_right_shift && operand->fmt != 'L')
 		break;
-	      else if (!arc_mach_a4 && (exp.X_op != O_register)
-		       && (operand->fmt != 'L')
+	      /* FIXME: This is an atrocious hack.
+		 We reject add insn variants for forward references if they
+		 can't accomodate a LIMM.  We should instead use a variable
+		 size fragment and relax this insn.  */
+	      else if (exp.X_op != O_register && operand->fmt != 'L'
 		       && ( (insn_name[0] == 'a' || insn_name[0] == 'A') &&
 			    (insn_name[1] == 'd' || insn_name[1] == 'D') &&
 			    (insn_name[2] == 'd' || insn_name[2] == 'D') ) )
@@ -6334,7 +5982,8 @@ printf(" syn=%s str=||%s||insn=%x\n",syn,str,insn);//ejm
 	      else if (exp.X_op == O_register)
 		{
 		  reg = (struct arc_operand_value *) exp.X_add_number;
-		  if (!arc_mach_a4) /* For ARCompact ISA */
+		  /* FIXME: clean up.  */
+		  if (1) /* For ARCompact ISA */
 		    {
 		      /* Try next instruction syntax, if the current operand
 			 being matched is not a register operand. */
@@ -6481,19 +6130,12 @@ printf(" syn=%s str=||%s||insn=%x\n",syn,str,insn);//ejm
 			break;
 		    }
 		}
-#define IS_REG_DEST_OPERAND(o) (((o) == 'a') || (!arc_mach_a4 && (o) == 'A'))
+#define IS_REG_DEST_OPERAND(o) ((o) == 'a' || (o) == 'A')
 	      else if (IS_REG_DEST_OPERAND (*syn))
 		as_bad ("symbol as destination register");
 	      else
 		{
 		  /* int sda_seen_p = 0; */
-		  if (!strncmp (str, "@h30", 4))
-		    {
-		      arc_code_symbol (&exp);
-		      str += 4;
-		    }
-		  else
-		    {
 		      int needGOTSymbol = 0;
 		      if (strchr (str, '@'))
 			{
@@ -6638,12 +6280,11 @@ printf(" syn=%s str=||%s||insn=%x\n",syn,str,insn);//ejm
 			  //			  fprintf (stderr, "Not the sda syntax string. Trying next ********\n");
 			  break;
 			}
-		    }
 
 		  /* Check the st/ld mnemonic:It should be able to
 		     accomodate an immediate. Hence, no register
 		     here!*/
-		  if (!arc_mach_a4 && !ac_constant_operand(operand)
+		  if (!ac_constant_operand(operand)
 		      && ( ((insn_name[0] == 'l' || insn_name[0] == 'L')
 			    && (insn_name[1] == 'd' || insn_name[1] == 'D')) ||
 			   ((insn_name[0] == 's' || insn_name[0] == 'S')
@@ -6734,7 +6375,7 @@ printf(" syn=%s str=||%s||insn=%x\n",syn,str,insn);//ejm
 		      break;
 		    }
 		}
-	      else if (!arc_mach_a4)
+	      else
 		{
 		  switch (operand->fmt)
 		    {
@@ -6753,8 +6394,6 @@ printf(" syn=%s str=||%s||insn=%x\n",syn,str,insn);//ejm
 			       << operand->shift);
 		    }
 		}
-	      else
-		insn |= (value & ((1 << operand->bits) - 1)) << operand->shift;
 
 	      insn |= convert_scaled;
 	      ++syn;
@@ -6895,7 +6534,7 @@ fprintf (stdout, "Matched syntax %s\n", opcode->syntax);
 		  }
 	      }
 	    /* Some short instructions are not defined having the %N attribute*/
-	    if (!arc_mach_a4 && em_jumplink_or_jump_insn (insn, compact_insn_16))
+	    if (em_jumplink_or_jump_insn (insn, compact_insn_16))
 	      {
 		delay_slot_type = ARC_DELAY_JUMP;
 	      }
@@ -6915,18 +6554,13 @@ fprintf (stdout, "Matched syntax %s\n", opcode->syntax);
 
 	    if (in_delay_slot_p)
 	      {
-		if (!arc_mach_a4)
-		  {
-		    if (ac_branch_or_jump_insn (insn, compact_insn_16) ||
-			em_branch_or_jump_insn (insn, compact_insn_16))
-		      {
-			as_bad ("branch/jump instruction in delay slot");
-		      }
-		    else if (ac_lpcc_insn (insn))
-		      as_bad ("lpcc instruction in delay slot");
-		    else if (ARC700_rtie_insn (insn))
-		      as_bad ("rtie instruction in delay slot");
-		  }
+		if (ac_branch_or_jump_insn (insn, compact_insn_16)
+		    || em_branch_or_jump_insn (insn, compact_insn_16))
+		  as_bad (_("branch/jump instruction in delay slot"));
+		else if (ac_lpcc_insn (insn))
+		  as_bad (_("lpcc instruction in delay slot"));
+		else if (ARC700_rtie_insn (insn))
+		  as_bad (_("rtie instruction in delay slot"));
 
 		if (arc_mach_type != bfd_mach_arc_arc700 ||
 		    arc_mach_type != bfd_mach_arc_arcv2)
@@ -6973,16 +6607,8 @@ fprintf (stdout, "Matched syntax %s\n", opcode->syntax);
 	      else
 		{
 		  f = frag_more (8);
-		  if (arc_mach_a4)
-		    {
-		      md_number_to_chars (f, insn, 4);
-		      md_number_to_chars (f + 4, limm, 4);
-		    }
-		  else
-		    {
-		      md_number_to_chars (f, insn, -4);
-		      md_number_to_chars (f + 4, limm, -4);
-		    }
+		  md_number_to_chars (f, insn, -4);
+		  md_number_to_chars (f + 4, limm, -4);
 		  dwarf2_emit_insn (8);
 		}
 	    }
@@ -7000,14 +6626,7 @@ fprintf (stdout, "Matched syntax %s\n", opcode->syntax);
 	      else
 		{
 		  f = frag_more (4);
-		  if (arc_mach_a4)
-		    {
-		      md_number_to_chars (f, insn, 4);
-		    }
-		  else
-		    {
-		      md_number_to_chars (f, insn, -4);
-		    }
+		  md_number_to_chars (f, insn, -4);
 		  dwarf2_emit_insn (4);
 		}
 	    }
@@ -7041,21 +6660,13 @@ fprintf (stdout, "Matched syntax %s\n", opcode->syntax);
 		  fixups[i].exp.X_add_number += arc_limm_fixup_adjust (insn);
 		  op_type = fixups[i].opindex;
 		  /* FIXME: can we add this data to the operand table?  */
-		  if (op_type == arc_operand_map['L']
-		      || (arc_mach_a4 && op_type == arc_operand_map['s'])
-		      || (arc_mach_a4 && op_type == arc_operand_map['o'])
-		      || (arc_mach_a4 && op_type == arc_operand_map['O']))
-		  {
-		      reloc_type = (arc_mach_a4) ? BFD_RELOC_32 : BFD_RELOC_ARC_32_ME;
+		  if (op_type == arc_operand_map['L'])
+		    {
+		      reloc_type = BFD_RELOC_ARC_32_ME;
 		      GAS_DEBUG_PIC (reloc_type);
-		  }
-		  else if (arc_mach_a4 && (op_type == arc_operand_map['J']))
-		  {
-		      reloc_type = BFD_RELOC_ARC_B26;
-		      GAS_DEBUG_PIC (reloc_type);
-		  }
+		    }
 		  else
-		      abort ();
+		    abort ();
 		  reloc_type = get_arc_exp_reloc_type (reloc_type,
 						       BFD_RELOC_ARC_PC32,
 						       &fixups[i].exp);
@@ -7207,38 +6818,18 @@ arc_handle_align (fragS* fragP)
   if ((fragP)->fr_type == rs_align_code)
     {
       char *dest = (fragP)->fr_literal + (fragP)->fr_fix;
-      int pad_bytes_a4;
       valueT count = ((fragP)->fr_next->fr_address
 		      - (fragP)->fr_address - (fragP)->fr_fix);
 
-      pad_bytes_a4    = ((count & 3));
-      (fragP)->fr_var = (arc_mach_a4 ? 4  : 2);
+      (fragP)->fr_var = 2;
 
-      if (arc_mach_a4)
+      if (count & 1)/* Padding in the gap till the next 2-byte boundary
+		       with 0s.  */
 	{
-	  if (pad_bytes_a4)
-	    {
-	      (fragP)->fr_fix += pad_bytes_a4;
-	      do/* Padding in the gap till the next 4-byte boundary
-		   with 0s.  */
-		{
-		  *dest++ = 0;
-		  pad_bytes_a4--;
-		}
-	      while (pad_bytes_a4);
-	    }
-	  md_number_to_chars (dest, 0x7fffffff, 4); /* writing nop */
+	  (fragP)->fr_fix++;
+	  *dest++ = 0;
 	}
-       else
-	{
-	  if (count & 1)/* Padding in the gap till the next 2-byte boundary
-			   with 0s.  */
-	    {
-	      (fragP)->fr_fix++;
-	      *dest++ = 0;
-	    }
-	  md_number_to_chars (dest, 0x78e0, 2);  /*writing nop_s */
-	}
+      md_number_to_chars (dest, 0x78e0, 2);  /*writing nop_s */
     }
 }
 
