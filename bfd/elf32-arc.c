@@ -2997,7 +2997,8 @@ elf_arc_relocate_section (bfd *output_bfd,
 	    {
 	      /* The value we have is inside the .tbss section; we want
 		 it to be relative to the .tbss start.  */
-	      relocation -= elf_hash_table (info)->tls_sec->output_section->vma;
+              if (elf_hash_table (info)->tls_sec)
+                relocation -= elf_hash_table (info)->tls_sec->output_section->vma;
 	      break;
 	    }
 	  asection *b_sec;

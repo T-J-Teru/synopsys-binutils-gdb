@@ -1,3 +1,11 @@
+2014-11-18  Andrew Burgess  <andrew.burgess@embecosm.com>
+
+	* elf32-arc.c (elf_arc_relocate_section): Possible fix for
+	R_ARC_TLS_DTPOFF and R_ARC_TLS_DTPOFF_S9 relocations, if there are
+	no TLS sections in the linked object.  I am not sure this fix is
+	correct.  I don't think it's wrong, just that it is masking
+	possible real errors.
+
 2014-05-23  Joern Rennecke  <joern.rennecke@embecosm.com>
 
 	* elf32-arc.c (arc_tls_transition) <R_ARC_TLS_IE_GOT -> GOT_TLS_LE>:
