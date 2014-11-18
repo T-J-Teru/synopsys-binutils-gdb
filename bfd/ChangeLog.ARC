@@ -1,5 +1,12 @@
 2014-11-18  Andrew Burgess  <andrew.burgess@embecosm.com>
 
+	* elf32-arc.c (elf_arc_check_relocs): Set non_got_ref when
+	appropriate.
+	(elf_arc_adjust_dynamic_symbol): Check non_got_ref when
+	appropriate.
+
+2014-11-18  Andrew Burgess  <andrew.burgess@embecosm.com>
+
 	* elf32-arc.c (elf_arc_relocate_section): Possible fix for
 	R_ARC_TLS_DTPOFF and R_ARC_TLS_DTPOFF_S9 relocations, if there are
 	no TLS sections in the linked object.  I am not sure this fix is
