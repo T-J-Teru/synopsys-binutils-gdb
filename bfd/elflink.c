@@ -12927,6 +12927,8 @@ _bfd_elf_get_dynamic_reloc_section (bfd *       abfd,
     {
       const char * name = get_dynamic_reloc_section_name (abfd, sec, is_rela);
 
+      apb_log ("  dynamic reloc section name = %s\n", name);
+
       if (name != NULL)
 	{
 	  reloc_sec = bfd_get_linker_section (abfd, name);

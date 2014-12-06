@@ -1636,6 +1636,7 @@ elf_arc_check_relocs_1 (bfd *abfd,
   asection *sreloc;
   Elf_Internal_Sym *isym;
   bfd_boolean may_become_dynamic_p, may_need_local_target_p;
+  reloc_howto_type *howto;
 
   if (info->relocatable)
     return TRUE;
@@ -1658,8 +1659,11 @@ elf_arc_check_relocs_1 (bfd *abfd,
       unsigned long r_symndx;
       struct elf_link_hash_entry *h;
 
-      apb_log ("Processing reloc #%d in %s\n",
-               (rel - relocs), __PRETTY_FUNCTION__);
+      howto = arc_elf_calculate_howto_index (ELF32_R_TYPE (rel->r_info));
+
+      apb_log ("Processing reloc #%d in %s (type = %s)\n",
+               (rel - relocs), __PRETTY_FUNCTION__,
+               (howto ? howto->name : "<NONE>"));
 
       r_symndx = ELF32_R_SYM (rel->r_info);
 
@@ -1761,10 +1765,16 @@ elf_arc_check_relocs_1 (bfd *abfd,
 	    }
 	  /* FALLTHROUGH */
 	case R_ARC_PC32:
-          if (info->shared && (sec->flags & SEC_ALLOC) != 0)
-            may_become_dynamic_p = TRUE;
+          if (info->shared /* && (sec->flags & SEC_ALLOC) != 0*/ )
+            {
+              apb_log ("  %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
+              may_become_dynamic_p = TRUE;
+            }
           else
-            may_need_local_target_p = TRUE;
+            {
+              apb_log ("  %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
+              may_need_local_target_p = TRUE;
+            }
 	  break;
 
 	default:
@@ -1895,14 +1905,14 @@ elf_arc_check_relocs (bfd *abfd,
  * Returns  :
  */
 static bfd_boolean
-elf_arc_relocate_section (bfd *output_bfd,
-			  struct bfd_link_info *info,
-			  bfd *input_bfd,
-			  asection *input_section,
-			  bfd_byte * contents,
-			  Elf_Internal_Rela *relocs,
-			  Elf_Internal_Sym *local_syms,
-			  asection **local_sections)
+elf_arc_relocate_section_1 (bfd *output_bfd,
+                            struct bfd_link_info *info,
+                            bfd *input_bfd,
+                            asection *input_section,
+                            bfd_byte * contents,
+                            Elf_Internal_Rela *relocs,
+                            Elf_Internal_Sym *local_syms,
+                            asection **local_sections)
 {
   bfd *dynobj;
   Elf_Internal_Shdr *symtab_hdr;
@@ -2101,6 +2111,14 @@ elf_arc_relocate_section (bfd *output_bfd,
 	}
       BFD_DEBUG_PIC ( fprintf (stderr, "Relocation = %d (%x)\n", relocation, relocation));
 
+      if (sec != NULL && discarded_section (sec))
+        {
+          apb_log ("****> discarded section...\n");
+          RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
+                                           rel, 1, relend, howto, 0, contents);
+        }
+
+      apb_log ("%s:%d - About to patch in relocation\n", __PRETTY_FUNCTION__, __LINE__);
 
       switch (r_type)
 	{
@@ -2354,7 +2372,8 @@ elf_arc_relocate_section (bfd *output_bfd,
 	      BFD_ASSERT(sreloc->contents != 0);
 
 	      loc = sreloc->contents;
-	      loc += sreloc->reloc_count++ * sizeof (Elf32_External_Rela); /* relA */
+	      loc += sreloc->reloc_count * sizeof (Elf32_External_Rela); /* relA */
+              sreloc->reloc_count++;
 
 	      bfd_elf32_swap_reloca_out (output_bfd, &outrel, loc);
 
@@ -2532,6 +2551,33 @@ elf_arc_relocate_section (bfd *output_bfd,
 
   return TRUE;
 }
+
+static bfd_boolean
+elf_arc_relocate_section (bfd *output_bfd,
+                          struct bfd_link_info *info,
+                          bfd *input_bfd,
+                          asection *input_section,
+                          bfd_byte * contents,
+                          Elf_Internal_Rela *relocs,
+                          Elf_Internal_Sym *local_syms,
+                          asection **local_sections)
+{
+  bfd_boolean ans;
+
+  apb_log ("---------------------------------------------------------\n");
+  apb_log (">>> %s input_section = `%s` from `%s`\n",
+           __PRETTY_FUNCTION__, input_section->name, input_bfd->filename);
+
+  ans = elf_arc_relocate_section_1 (output_bfd, info, input_bfd,
+                                    input_section, contents, relocs,
+                                    local_syms, local_sections);
+
+  apb_log ("<<< %s = %s\n", __PRETTY_FUNCTION__, (ans ? "True" : "False"));
+  apb_log ("---------------------------------------------------------\n");
+
+  return ans;
+}
+
 
 /* Similar to memcpy, but SRC points to an array of instruction halfwords
    (i.e. each stands for two bytes) in host byte order.
@@ -3200,6 +3246,7 @@ static bfd_boolean
 elf_arc_allocate_dynrelocs_for_symbol (struct elf_link_hash_entry *h,
                                        void * inf)
 {
+  struct elf_dyn_relocs *p;
   struct bfd_link_info *info;
   struct elf_ARC_link_hash_entry *eh;
   struct elf_ARC_link_hash_table *htab;
@@ -3223,7 +3270,17 @@ elf_arc_allocate_dynrelocs_for_symbol (struct elf_link_hash_entry *h,
   if (eh->dyn_relocs == NULL)
     return TRUE;
 
-  apb_log ("  %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
+  /* Finally, allocate space.  */
+  for (p = eh->dyn_relocs; p != NULL; p = p->next)
+    {
+      asection * sreloc;
+
+      sreloc = elf_section_data (p->sec)->sreloc;
+
+      BFD_ASSERT (sreloc != NULL);
+
+      sreloc->size += p->count * sizeof (Elf32_External_Rela);
+    }
 
   return TRUE;
 }

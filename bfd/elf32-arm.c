@@ -8238,6 +8238,8 @@ elf32_arm_final_link_relocate (reloc_howto_type *           howto,
 					   rel->r_addend);
 	}
 
+      fprintf (stderr, "APB: %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
+
       /* When generating a shared object or relocatable executable, these
 	 relocations are copied into the output file to be resolved at
 	 run time.  */
@@ -8262,6 +8264,8 @@ elf32_arm_final_link_relocate (reloc_howto_type *           howto,
 	  bfd_boolean skip, relocate;
 
 	  *unresolved_reloc_p = FALSE;
+
+          fprintf (stderr, "APB: %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
 
 	  if (sreloc == NULL && globals->root.dynamic_sections_created)
 	    {
@@ -10343,6 +10347,9 @@ elf32_arm_relocate_section (bfd *                  output_bfd,
   symtab_hdr = & elf_symtab_hdr (input_bfd);
   sym_hashes = elf_sym_hashes (input_bfd);
 
+  apb_log ("%s for section `%s` from `%s`\n",
+           __PRETTY_FUNCTION__, input_section->name, input_bfd->filename);
+
   rel = relocs;
   relend = relocs + input_section->reloc_count;
   for (; rel < relend; rel++)
@@ -10359,6 +10366,8 @@ elf32_arm_relocate_section (bfd *                  output_bfd,
       char                         sym_type;
       bfd_boolean                  unresolved_reloc = FALSE;
       char *error_message = NULL;
+
+      apb_log ("  rel %p\n", rel);
 
       r_symndx = ELF32_R_SYM (rel->r_info);
       r_type   = ELF32_R_TYPE (rel->r_info);
@@ -10381,6 +10390,8 @@ elf32_arm_relocate_section (bfd *                  output_bfd,
 	  sym_type = ELF32_ST_TYPE (sym->st_info);
 	  sec = local_sections[r_symndx];
 
+          apb_log ("APB: %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
+
 	  /* An object file might have a reference to a local
 	     undefined symbol.  This is a daft object file, but we
 	     should at least do something about it.  V4BX & NONE
@@ -10393,6 +10404,7 @@ elf32_arm_relocate_section (bfd *                  output_bfd,
 	      && bfd_is_und_section (sec)
 	      && ELF_ST_BIND (sym->st_info) != STB_WEAK)
 	    {
+              apb_log ("APB: %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
 	      if (!info->callbacks->undefined_symbol
 		  (info, bfd_elf_string_from_elf_section
 		   (input_bfd, symtab_hdr->sh_link, sym->st_name),
@@ -10403,6 +10415,7 @@ elf32_arm_relocate_section (bfd *                  output_bfd,
 
 	  if (globals->use_rel)
 	    {
+              apb_log ("APB: %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
 	      relocation = (sec->output_section->vma
 			    + sec->output_offset
 			    + sym->st_value);
@@ -10412,6 +10425,8 @@ elf32_arm_relocate_section (bfd *                  output_bfd,
 		{
 		  asection *msec;
 		  bfd_vma addend, value;
+
+                  apb_log ("APB: %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
 
 		  switch (r_type)
 		    {
@@ -10459,6 +10474,8 @@ elf32_arm_relocate_section (bfd *                  output_bfd,
 		      break;
 		    }
 
+                  apb_log ("APB: %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
+
 		  msec = sec;
 		  addend =
 		    _bfd_elf_rel_local_sym (output_bfd, sym, &msec, addend)
@@ -10487,6 +10504,7 @@ elf32_arm_relocate_section (bfd *                  output_bfd,
 		      break;
 
 		    default:
+                      apb_log ("APB: %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
 		      value = (value & ~ howto->dst_mask)
 			      | (addend & howto->dst_mask);
 		      bfd_put_32 (input_bfd, value, contents + rel->r_offset);
@@ -10495,11 +10513,16 @@ elf32_arm_relocate_section (bfd *                  output_bfd,
 		}
 	    }
 	  else
-	    relocation = _bfd_elf_rela_local_sym (output_bfd, sym, &sec, rel);
+            {
+              apb_log ("APB: %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
+              relocation = _bfd_elf_rela_local_sym (output_bfd, sym, &sec, rel);
+            }
 	}
       else
 	{
 	  bfd_boolean warned;
+
+          apb_log ("APB: %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
 
 	  RELOC_FOR_GLOBAL_SYMBOL (info, input_bfd, input_section, rel,
 				   r_symndx, symtab_hdr, sym_hashes,
@@ -10515,6 +10538,7 @@ elf32_arm_relocate_section (bfd *                  output_bfd,
 
       if (info->relocatable)
 	{
+          apb_log ("APB: %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
 	  /* This is a relocatable link.  We don't have to change
 	     anything, unless the reloc is against a section symbol,
 	     in which case we have to adjust according to where the
@@ -10529,6 +10553,8 @@ elf32_arm_relocate_section (bfd *                  output_bfd,
 	    }
 	  continue;
 	}
+
+      apb_log ("APB: %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
 
       if (h != NULL)
 	name = h->root.root.string;
@@ -10558,6 +10584,8 @@ elf32_arm_relocate_section (bfd *                  output_bfd,
 	     name);
 	}
 
+      apb_log ("APB: %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
+
       /* We call elf32_arm_final_link_relocate unless we're completely
          done, i.e., the relaxation produced the final output we want,
          and we won't let anybody mess with it. Also, we have to do
@@ -10569,6 +10597,7 @@ elf32_arm_relocate_section (bfd *                  output_bfd,
 		   elf32_arm_local_got_tls_type (input_bfd)[r_symndx])
 		  & GOT_TLS_GDESC)))
        {
+         apb_log ("APB: %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
 	 r = elf32_arm_tls_relax (globals, input_bfd, input_section,
 				  contents, rel, h == NULL);
 	 /* This may have been marked unresolved because it came from
@@ -10579,12 +10608,15 @@ elf32_arm_relocate_section (bfd *                  output_bfd,
        r = bfd_reloc_continue;
 
      if (r == bfd_reloc_continue)
-       r = elf32_arm_final_link_relocate (howto, input_bfd, output_bfd,
-					  input_section, contents, rel,
-					  relocation, info, sec, name, sym_type,
-					  (h ? h->target_internal
-					   : ARM_SYM_BRANCH_TYPE (sym)), h,
-					  &unresolved_reloc, &error_message);
+       {
+          apb_log ("APB: %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
+          r = elf32_arm_final_link_relocate (howto, input_bfd, output_bfd,
+                                             input_section, contents, rel,
+                                             relocation, info, sec, name, sym_type,
+                                             (h ? h->target_internal
+                                              : ARM_SYM_BRANCH_TYPE (sym)), h,
+                                             &unresolved_reloc, &error_message);
+       }
 
       /* Dynamic relocs are not propagated for SEC_DEBUGGING sections
 	 because such sections are not SEC_ALLOC and thus ld.so will
@@ -12746,6 +12778,7 @@ elf32_arm_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  /* Create a reloc section in dynobj.  */
 	  if (sreloc == NULL)
 	    {
+              fprintf (stderr, "APB: %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
 	      sreloc = _bfd_elf_make_dynamic_reloc_section
 		(sec, dynobj, 2, abfd, ! htab->use_rel);
 
