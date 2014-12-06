@@ -30,6 +30,8 @@
 #include "libiberty.h"
 #include "objalloc.h"
 
+extern void apb_log (const char *fmt, ...);
+
 /* This struct is used to pass information to routines called via
    elf_link_hash_traverse which must return failure.  */
 
@@ -11734,7 +11736,11 @@ _bfd_elf_gc_mark_reloc (struct bfd_link_info *info,
     {
       if (bfd_get_flavour (rsec->owner) != bfd_target_elf_flavour
 	  || (rsec->owner->flags & DYNAMIC) != 0)
-	rsec->gc_mark = 1;
+        {
+          apb_log ("GC-SECTIONS(MARK): Mark section `%s` (%s:%d)\n",
+                   rsec->name, __FILE__, __LINE__);
+          rsec->gc_mark = 1;
+        }
       else if (!_bfd_elf_gc_mark (info, rsec, gc_mark_hook))
 	return FALSE;
     }
@@ -11754,6 +11760,8 @@ _bfd_elf_gc_mark (struct bfd_link_info *info,
   asection *group_sec, *eh_frame;
 
   sec->gc_mark = 1;
+  apb_log ("GC-SECTIONS(MARK): Mark section `%s` (%s:%d)\n",
+           sec->name, __FILE__, __LINE__);
 
   /* Mark all the sections in the group.  */
   group_sec = elf_section_data (sec)->next_in_group;
@@ -11824,7 +11832,11 @@ _bfd_elf_gc_mark_extra_sections (struct bfd_link_info *info,
       for (isec = ibfd->sections; isec != NULL; isec = isec->next)
 	{
 	  if ((isec->flags & SEC_LINKER_CREATED) != 0)
-	    isec->gc_mark = 1;
+            {
+              apb_log ("GC-SECTIONS(MARK): Mark section `%s` (%s:%d)\n",
+                       isec->name, __FILE__, __LINE__);
+              isec->gc_mark = 1;
+            }
 	  else if (isec->gc_mark)
 	    some_kept = TRUE;
 	}
@@ -11841,7 +11853,11 @@ _bfd_elf_gc_mark_extra_sections (struct bfd_link_info *info,
 	     || elf_next_in_group (isec) == isec)
 	    && ((isec->flags & SEC_DEBUGGING) != 0
 		|| (isec->flags & (SEC_ALLOC | SEC_LOAD | SEC_RELOC)) == 0))
-	  isec->gc_mark = 1;
+          {
+            apb_log ("GC-SECTIONS(MARK): Mark section `%s` (%s:%d)\n",
+                     isec->name, __FILE__, __LINE__);
+            isec->gc_mark = 1;
+          }
     }
   return TRUE;
 }
@@ -11908,6 +11924,8 @@ elf_gc_sweep (bfd *abfd, struct bfd_link_info *info)
 	  if (o->flags & SEC_GROUP)
 	    {
 	      asection *first = elf_next_in_group (o);
+              apb_log ("GC-SECTIONS(MARK): Mark section `%s` (%s:%d)\n",
+                       o->name, __FILE__, __LINE__);
 	      o->gc_mark = first->gc_mark;
 	    }
 
@@ -12902,6 +12920,9 @@ _bfd_elf_get_dynamic_reloc_section (bfd *       abfd,
 {
   asection * reloc_sec = elf_section_data (sec)->sreloc;
 
+  apb_log ("Get dynamic reloc section for `%s` from `%s`\n",
+           sec->name, abfd->filename);
+
   if (reloc_sec == NULL)
     {
       const char * name = get_dynamic_reloc_section_name (abfd, sec, is_rela);
@@ -12914,6 +12935,9 @@ _bfd_elf_get_dynamic_reloc_section (bfd *       abfd,
 	    elf_section_data (sec)->sreloc = reloc_sec;
 	}
     }
+
+  apb_log ("Returning %p (%s)\n", reloc_sec,
+           (reloc_sec ? reloc_sec->name : ""));
 
   return reloc_sec;
 }

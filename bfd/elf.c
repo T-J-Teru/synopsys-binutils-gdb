@@ -49,6 +49,8 @@ SECTION
 #include CORE_HEADER
 #endif
 
+extern void apb_log (const char *fmt, ...);
+
 static int elf_sort_sections (const void *, const void *);
 static bfd_boolean assign_file_positions_except_relocs (bfd *, struct bfd_link_info *);
 static bfd_boolean prep_headers (bfd *);
@@ -2285,6 +2287,9 @@ _bfd_elf_new_section_hook (bfd *abfd, asection *sec)
   const struct elf_backend_data *bed;
   const struct bfd_elf_special_section *ssect;
 
+  apb_log ("APB: Created section `%s` from `%s`\n",
+           sec->name, abfd->filename);
+  
   sdata = (struct bfd_elf_section_data *) sec->used_by_bfd;
   if (sdata == NULL)
     {

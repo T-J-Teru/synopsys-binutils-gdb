@@ -40,6 +40,24 @@
 #include CORE_HEADER
 #endif
 
+
+#include <stdarg.h>
+
+extern void apb_log (const char *fmt, ...);
+
+void
+apb_log (const char *fmt, ...)
+{
+  va_list ap;
+
+  if (getenv ("APB_LOG") == NULL)
+    return;
+
+  va_start (ap, fmt);
+  vfprintf (stderr, fmt, ap);
+  va_end (ap);
+}
+
 /* In case we're on a 32-bit machine, construct a 64-bit "-1" value.  */
 #define MINUS_ONE (~ (bfd_vma) 0)
 
@@ -1410,6 +1428,8 @@ elf_x86_64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 
   sreloc = NULL;
 
+  fprintf (stderr, "Entering %s\n", __PRETTY_FUNCTION__);
+
   rel_end = relocs + sec->reloc_count;
   for (rel = relocs; rel < rel_end; rel++)
     {
@@ -1419,6 +1439,8 @@ elf_x86_64_check_relocs (bfd *abfd, struct bfd_link_info *info,
       Elf_Internal_Sym *isym;
       const char *name;
 
+      apb_log ("Reloc %p\n", rel);
+
       r_symndx = htab->r_sym (rel->r_info);
       r_type = ELF32_R_TYPE (rel->r_info);
 
@@ -1426,7 +1448,12 @@ elf_x86_64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	{
 	  (*_bfd_error_handler) (_("%B: bad symbol index: %d"),
 				 abfd, r_symndx);
-	  return FALSE;
+          {
+            if (sreloc)
+              fprintf (stderr, "APB: Created sreloc `%s` size %ld\n",
+                       sreloc->name, sreloc->size);
+            return FALSE;
+          }
 	}
 
       if (r_symndx < symtab_hdr->sh_info)
@@ -1435,7 +1462,12 @@ elf_x86_64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  isym = bfd_sym_from_r_symndx (&htab->sym_cache,
 					abfd, r_symndx);
 	  if (isym == NULL)
-	    return FALSE;
+            {
+              if (sreloc)
+                fprintf (stderr, "APB: Created sreloc `%s` size %ld\n",
+                         sreloc->name, sreloc->size);
+              return FALSE;
+            }
 
 	  /* Check relocation against local STT_GNU_IFUNC symbol.  */
 	  if (ELF_ST_TYPE (isym->st_info) == STT_GNU_IFUNC)
@@ -1443,7 +1475,12 @@ elf_x86_64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	      h = elf_x86_64_get_local_sym_hash (htab, abfd, rel,
 						 TRUE);
 	      if (h == NULL)
-		return FALSE;
+                {
+                  if (sreloc)
+                    fprintf (stderr, "APB: Created sreloc `%s` size %ld\n",
+                             sreloc->name, sreloc->size);
+                  return FALSE;
+                }
 
 	      /* Fake a STT_GNU_IFUNC symbol.  */
 	      h->type = STT_GNU_IFUNC;
@@ -1491,7 +1528,12 @@ elf_x86_64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 		     "supported in x32 mode"), abfd,
 		   x86_64_elf_howto_table[r_type].name, name);
 		bfd_set_error (bfd_error_bad_value);
-		return FALSE;
+                {
+                  if (sreloc)
+                    fprintf (stderr, "APB: Created sreloc `%s` size %ld\n",
+                             sreloc->name, sreloc->size);
+                  return FALSE;
+                }
 	      }
 	    break;
 	  }
@@ -1518,7 +1560,12 @@ elf_x86_64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	      if (htab->elf.dynobj == NULL)
 		htab->elf.dynobj = abfd;
 	      if (!_bfd_elf_create_ifunc_sections (htab->elf.dynobj, info))
-		return FALSE;
+                {
+                  if (sreloc)
+                    fprintf (stderr, "APB: Created sreloc `%s` size %ld\n",
+                             sreloc->name, sreloc->size);
+                  return FALSE;
+                }
 	      break;
 	    }
 
@@ -1552,7 +1599,12 @@ elf_x86_64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 		     x86_64_elf_howto_table[r_type].name,
 		     name, __FUNCTION__);
 		  bfd_set_error (bfd_error_bad_value);
-		  return FALSE;
+                  {
+                    if (sreloc)
+                      fprintf (stderr, "APB: Created sreloc `%s` size %ld\n",
+                               sreloc->name, sreloc->size);
+                    return FALSE;
+                  }
 
 		case R_X86_64_32:
 		  if (ABI_64_P (abfd))
@@ -1569,7 +1621,12 @@ elf_x86_64_check_relocs (bfd *abfd, struct bfd_link_info *info,
 			(abfd, info, sec, sreloc,
 			 &((struct elf_x86_64_link_hash_entry *) h)->dyn_relocs);
 		      if (sreloc == NULL)
-			return FALSE;
+                        {
+                          if (sreloc)
+                            fprintf (stderr, "APB: Created sreloc `%s` size %ld\n",
+                                     sreloc->name, sreloc->size);
+                          return FALSE;
+                        }
 		    }
 		  break;
 
@@ -1592,7 +1649,12 @@ not_pointer:
 		  if (htab->elf.sgot == NULL
 		      && !_bfd_elf_create_got_section (htab->elf.dynobj,
 						       info))
-		    return FALSE;
+                    {
+                      if (sreloc)
+                        fprintf (stderr, "APB: Created sreloc `%s` size %ld\n",
+                                 sreloc->name, sreloc->size);
+                      return FALSE;
+                    }
 		  break;
 		}
 
@@ -1604,7 +1666,12 @@ not_pointer:
 				       symtab_hdr, sym_hashes,
 				       &r_type, GOT_UNKNOWN,
 				       rel, rel_end, h, r_symndx))
-	return FALSE;
+        {
+          if (sreloc)
+            fprintf (stderr, "APB: Created sreloc `%s` size %ld\n",
+                     sreloc->name, sreloc->size);
+          return FALSE;
+        }
 
       switch (r_type)
 	{
@@ -1625,7 +1692,12 @@ not_pointer:
 		 abfd,
 		 x86_64_elf_howto_table[r_type].name, name);
 	      bfd_set_error (bfd_error_bad_value);
-	      return FALSE;
+              {
+                if (sreloc)
+                  fprintf (stderr, "APB: Created sreloc `%s` size %ld\n",
+                           sreloc->name, sreloc->size);
+                return FALSE;
+              }
 	    }
 	  break;
 
@@ -1685,7 +1757,12 @@ not_pointer:
 		    local_got_refcounts = ((bfd_signed_vma *)
 					   bfd_zalloc (abfd, size));
 		    if (local_got_refcounts == NULL)
-		      return FALSE;
+                      {
+                        if (sreloc)
+                          fprintf (stderr, "APB: Created sreloc `%s` size %ld\n",
+                                   sreloc->name, sreloc->size);
+                        return FALSE;
+                      }
 		    elf_local_got_refcounts (abfd) = local_got_refcounts;
 		    elf_x86_64_local_tlsdesc_gotent (abfd)
 		      = (bfd_vma *) (local_got_refcounts + symtab_hdr->sh_info);
@@ -1718,7 +1795,12 @@ not_pointer:
 		    (*_bfd_error_handler)
 		      (_("%B: '%s' accessed both as normal and thread local symbol"),
 		       abfd, name);
-		    return FALSE;
+                    {
+                      if (sreloc)
+                        fprintf (stderr, "APB: Created sreloc `%s` size %ld\n",
+                                 sreloc->name, sreloc->size);
+                      return FALSE;
+                    }
 		  }
 	      }
 
@@ -1742,7 +1824,12 @@ not_pointer:
 		htab->elf.dynobj = abfd;
 	      if (!_bfd_elf_create_got_section (htab->elf.dynobj,
 						info))
-		return FALSE;
+                {
+                  if (sreloc)
+                    fprintf (stderr, "APB: Created sreloc `%s` size %ld\n",
+                             sreloc->name, sreloc->size);
+                  return FALSE;
+                }
 	    }
 	  break;
 
@@ -1795,7 +1882,12 @@ not_pointer:
 		(_("%B: relocation %s against `%s' can not be used when making a shared object; recompile with -fPIC"),
 		 abfd, x86_64_elf_howto_table[r_type].name, name);
 	      bfd_set_error (bfd_error_bad_value);
-	      return FALSE;
+              {
+                if (sreloc)
+                  fprintf (stderr, "APB: Created sreloc `%s` size %ld\n",
+                           sreloc->name, sreloc->size);
+                return FALSE;
+              }
 	    }
 	  /* Fall through.  */
 
@@ -1814,6 +1906,8 @@ pointer:
 		 Tentatively set the flag for now, and correct in
 		 adjust_dynamic_symbol.  */
 	      h->non_got_ref = 1;
+
+              fprintf (stderr, "APB: %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
 
 	      /* We may need a .plt entry if the function this reloc
 		 refers to is in a shared lib.  */
@@ -1860,6 +1954,8 @@ pointer:
 	      struct elf_dyn_relocs *p;
 	      struct elf_dyn_relocs **head;
 
+              fprintf (stderr, "APB: %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
+
 	      /* We must copy these reloc types into the output file.
 		 Create a reloc section in dynobj and make room for
 		 this reloc.  */
@@ -1873,7 +1969,12 @@ pointer:
 		     abfd, /*rela?*/ TRUE);
 
 		  if (sreloc == NULL)
-		    return FALSE;
+                    {
+                      if (sreloc)
+                        fprintf (stderr, "APB: Created sreloc `%s` size %ld\n",
+                                 sreloc->name, sreloc->size);
+                      return FALSE;
+                    }
 		}
 
 	      /* If this is a global symbol, we count the number of
@@ -1893,7 +1994,12 @@ pointer:
 		  isym = bfd_sym_from_r_symndx (&htab->sym_cache,
 						abfd, r_symndx);
 		  if (isym == NULL)
-		    return FALSE;
+                    {
+                      if (sreloc)
+                        fprintf (stderr, "APB: Created sreloc `%s` size %ld\n",
+                                 sreloc->name, sreloc->size);
+                      return FALSE;
+                    }
 
 		  s = bfd_section_from_elf_index (abfd, isym->st_shndx);
 		  if (s == NULL)
@@ -1913,7 +2019,12 @@ pointer:
 		  p = ((struct elf_dyn_relocs *)
 		       bfd_alloc (htab->elf.dynobj, amt));
 		  if (p == NULL)
-		    return FALSE;
+                    {
+                      if (sreloc)
+                        fprintf (stderr, "APB: Created sreloc `%s` size %ld\n",
+                                 sreloc->name, sreloc->size);
+                      return FALSE;
+                    }
 		  p->next = *head;
 		  *head = p;
 		  p->sec = sec;
@@ -1931,7 +2042,12 @@ pointer:
 	     Reconstruct it for later use during GC.  */
 	case R_X86_64_GNU_VTINHERIT:
 	  if (!bfd_elf_gc_record_vtinherit (abfd, sec, h, rel->r_offset))
-	    return FALSE;
+            {
+              if (sreloc)
+                fprintf (stderr, "APB: Created sreloc `%s` size %ld\n",
+                         sreloc->name, sreloc->size);
+              return FALSE;
+            }
 	  break;
 
 	  /* This relocation describes which C++ vtable entries are actually
@@ -1940,7 +2056,12 @@ pointer:
 	  BFD_ASSERT (h != NULL);
 	  if (h != NULL
 	      && !bfd_elf_gc_record_vtentry (abfd, sec, h, rel->r_addend))
-	    return FALSE;
+            {
+              if (sreloc)
+                fprintf (stderr, "APB: Created sreloc `%s` size %ld\n",
+                         sreloc->name, sreloc->size);
+              return FALSE;
+            }
 	  break;
 
 	default:
@@ -1948,7 +2069,12 @@ pointer:
 	}
     }
 
-  return TRUE;
+  {
+    if (sreloc)
+      fprintf (stderr, "APB: Created sreloc `%s` size %ld\n",
+               sreloc->name, sreloc->size);
+    return TRUE;
+  }
 }
 
 /* Return the section that should be marked against GC for a given

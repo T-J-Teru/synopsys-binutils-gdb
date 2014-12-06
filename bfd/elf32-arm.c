@@ -31,6 +31,25 @@
 #include "elf-vxworks.h"
 #include "elf/arm.h"
 
+
+#include <stdarg.h>
+
+extern void apb_log (const char *fmt, ...);
+
+void
+apb_log (const char *fmt, ...)
+{
+  va_list ap;
+
+  if (getenv ("APB_LOG") == NULL)
+    return;
+
+  va_start (ap, fmt);
+  vfprintf (stderr, fmt, ap);
+  va_end (ap);
+}
+
+
 /* Return the relocation section associated with NAME.  HTAB is the
    bfd's elf32_arm_link_hash_entry.  */
 #define RELOC_SECTION(HTAB, NAME) \
@@ -12700,7 +12719,10 @@ elf32_arm_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  /* If the symbol is a function that doesn't bind locally,
 	     this relocation will need a PLT entry.  */
 	  if (root_plt->refcount != -1)
-	    root_plt->refcount += 1;
+            {
+              fprintf (stderr, "APB: %s:%d\n", __PRETTY_FUNCTION__, __LINE__);
+              root_plt->refcount += 1;
+            }
 
 	  if (!call_reloc_p)
 	    arm_plt->noncall_refcount++;

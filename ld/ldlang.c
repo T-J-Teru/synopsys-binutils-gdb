@@ -50,6 +50,8 @@
 #define offsetof(TYPE, MEMBER) ((size_t) & (((TYPE*) 0)->MEMBER))
 #endif
 
+extern void apb_log (const char *fmt, ...);
+
 /* Locals variables.  */
 static struct obstack stat_obstack;
 static struct obstack map_obstack;
@@ -6321,7 +6323,11 @@ gc_section_callback (lang_wild_statement_type *ptr,
   /* If the wild pattern was marked KEEP, the member sections
      should be as well.  */
   if (ptr->keep_sections)
-    section->flags |= SEC_KEEP;
+    {
+      apb_log ("GC-SECTIONS: Mark `%s` as KEEP (%s:%d)\n",
+               section->name, __FILE__, __LINE__);
+      section->flags |= SEC_KEEP;
+    }
 }
 
 /* Iterate over sections marking them against GC.  */
@@ -7942,6 +7948,9 @@ lang_do_version_exports_section (void)
       /* Do not free the contents, as we used them creating the regex.  */
 
       /* Do not include this section in the link.  */
+      apb_log ("GC-SECTIONS: Mark `%s` as KEEP (%s:%d)\n",
+               sec->name, __FILE__, __LINE__);
+
       sec->flags |= SEC_EXCLUDE | SEC_KEEP;
     }
 
