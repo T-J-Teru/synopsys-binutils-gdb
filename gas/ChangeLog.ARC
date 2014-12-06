@@ -1,3 +1,7 @@
+2014-12-05  Andrew Burgess  <andrew.burgess@embecosm.com>
+
+	* testsuite/gas/arc/reloctest.d: Update expected output.
+
 2014-11-19 Claudiu Zissulescu <claziss@synopsys.com>
 
 	* config/tc-arc.c: Add check DMB constant.
