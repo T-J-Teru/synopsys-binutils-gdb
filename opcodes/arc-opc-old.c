@@ -949,11 +949,15 @@ static const struct arc_operand arc_operands_ac[] =
 
   /* register A for 64 bit ops. */
 #define ARCV2_REGA_64 (ARCV2_TFLAGFINBR+1)
-  { '=', 6, ARC_SHIFT_REGA_AC, ARC_OPERAND_SIGNED | ARC_OPERAND_ERROR, insert_reg, extract_reg },
+  { '=', 6, ARC_SHIFT_REGA_AC, ARC_OPERAND_SIGNED | ARC_OPERAND_ERROR, insert_reg, 0 },
 
-/* register C used for ARCompact 64-bit ST insns */
-#define ARCV2_REGC_64 (REGB_DEST_AC + 1)
-  { '_', 6, ARC_SHIFT_REGC_AC, ARC_OPERAND_SIGNED | ARC_OPERAND_ERROR, insert_reg, extract_reg },
+  /* register B used for 64-bit ops */
+#define ARCV2_REGB_64 (ARCV2_REGA_64 + 1)
+  { ';', 6, ARC_SHIFT_REGB_LOW_AC, ARC_OPERAND_SIGNED | ARC_OPERAND_ERROR, insert_reg, 0 },
+
+  /* register C used for 64-bit ops */
+#define ARCV2_REGC_64 (ARCV2_REGB_64 + 1)
+  { '_', 6, ARC_SHIFT_REGC_AC, ARC_OPERAND_SIGNED | ARC_OPERAND_ERROR, insert_reg, 0 },
 
 /* end of list place holder */
   { 0, 0, 0, 0, 0, 0 }
@@ -1413,7 +1417,7 @@ insert_reg (arc_insn insn,long *ex ATTRIBUTE_UNUSED,
       else if ((mods & ARC_MOD_SDASYM) && !ac_add_reg_sdasym_insn (insn))
 	{
 	  /* Check if this insn is a prefetch that needs a limm */
-	  if ((insn & 0xFFFFF9FF) == 0x1600703E)
+	  if ((insn & 0xFFFFF87F) == 0x1600703E)
 	    {
 	      limm_p = 1;
 	    }
@@ -1492,13 +1496,26 @@ insert_reg (arc_insn insn,long *ex ATTRIBUTE_UNUSED,
 	    {
 	      /* TODO: Check for validity of using ARCompact auxiliary regs.  */
 
-	      //	      insn |= reg->value << operand->shift;
-	      /* Replace this later with the corresponding function to do
-		 the insertion of signed 12 bit immediates .
-		 This is because the auxillary registers used as a mnemonic
+	      /* Replace this later with the corresponding function to
+		 do the insertion of signed 12 bit immediates .  This
+		 is because the auxillary registers used as a mnemonic
 		 would be stored in this fashion.  */
 
-	      insn |= (((reg->value & 0x3f) << 6) | ((reg->value & 0xffffffc0) >> 6));
+	      /* Predicated AEX doesn't allow s12 immediate. Only u6. */
+	      if ((insn & 0xF8FF8020) == 0x20E70020)
+		{
+		  if ((reg->value < 0) || (reg->value > 63))
+		    *errmsg = _("unable to fit auxiliary register into instruction");
+		  else
+		    insn |= ((reg->value & 0x3f) << 6);
+		}
+	      else
+		{
+		  if ((reg->value < -2048) || (reg->value > 2047))
+		    *errmsg = _("unable to fit auxiliary register into instruction");
+		  else
+		    insn |= (((reg->value & 0x3f) << 6) | ((reg->value & 0xfc0) >> 6));
+		}
 	    }
 	}
       else
@@ -1585,6 +1602,20 @@ insert_reg (arc_insn insn,long *ex ATTRIBUTE_UNUSED,
 		{
 		  /* A (64 bit) class*/
 		  insn |= (reg->value & 0x3E) << operand->shift;
+		}
+	    }
+	  else if (!arc_mach_a4 && (operand->fmt == ';'))
+	    {
+	      if ((reg->value % 2) == 1 )
+		{
+		  sprintf (buf, _("invalid register number `%d'"), reg->value);
+		  *errmsg = buf;
+		}
+	      else
+		{
+		  /* A (64 bit) class*/
+		  insn |= (reg->value & 0x6) << operand->shift;
+		  insn |= (reg->value >> 3) << ARC_SHIFT_REGB_HIGH_AC;
 		}
 	    }
 	  else
@@ -3362,7 +3393,8 @@ static struct arc_opcode arc_opcodes[] = {
   /* ld<.aa><.di><.x><.ZZ>    0,[b,c] 	0010 0bbb aa11 0ZZX DBBB CCCC CC11 1110  */
   { (unsigned char *) "ld%T%.X%.P%.V 0,[%g,%C]%3",             0xF838003F, 0x2030003E, ARC_MACH_ARCV2, 0, 0, 0, 0},
   /* ld<.aa><.di><.x><.ZZ>    0,[b,s9] 	0001 0bbb ssss ssss SBBB DaaZ ZX11 1110  */
-  { (unsigned char *) "ld%t%.x%.p%.v 0,[%g,%o]%3",             0xF800003F, 0x1000003E, ARC_MACH_ARCV2, 0, 0, 0, 0},
+  { (unsigned char *) "ld%t%.x%.p%.v 0,[%g,%o]%1",             0xF800003F, 0x1000003E, ARC_MACH_ARCV2, 0, 0, 0, 0},
+  { (unsigned char *) "ld%t%.x%.p%.v 0,[%g]%1",                0xF800003F, 0x1000003E, ARC_MACH_ARCV2, 0, 0, 0, 0},
   /* ld<.aa><.di><.x><.ZZ>    0,[b,limm] 	0010 0bbb aa11 0ZZX DBBB 1111 1011 1110  */
   { (unsigned char *) "ld%T%.X%.P%.V%Q 0,[%g,%L]%3",           0xF8380FFF, 0x20300FBE, ARC_MACH_ARCV2, 0, 0, 0, 0},
   /* ld<.aa><.di><.x><.ZZ>    0,[limm,c] 	0010 0110 aa11 0ZZX D111 CCCC CC11 1110  */
@@ -3374,6 +3406,7 @@ static struct arc_opcode arc_opcodes[] = {
   /* ld<.aa><.di><.x><.ZZ>    0,[limm,limm] 	0010 0110 aa11 0ZZX D111 1111 1011 1110  */
   { (unsigned char *) "ld%T%.X%.P%.V%Q 0,[%L,%L]%3",           0xFF387FFF, 0x26307FBE, ARC_MACH_ARCV2, 0, 0, 0, 0},
   /* ld<.di><.x><.ZZ>    0,[limm 	0001 0110 0000 0000 0111 DRRZ ZX11 1110  */
+  { (unsigned char *) "ld%t%.x%.v%Q 0,[%[L]%3",                 0xFFFFF63F, 0x1600703E, ARC_MACH_ARCV2, 0, 0, 0, 0},
   { (unsigned char *) "ld%t%.x%.v%Q 0,[%L]%3",                 0xFFFFF63F, 0x1600703E, ARC_MACH_ARCV2, 0, 0, 0, 0},
 
   /* load instruction opcodes */
@@ -4591,6 +4624,7 @@ static const struct arc_operand_value arc_reg_names_em[] =
   { "gp", 26, REG_AC, 0 }, { "fp", 27, REG_AC, 0 }, { "sp", 28, REG_AC, 0 },
   { "ilink", 29, REG_AC, 0 },
   { "blink", 31, REG_AC, 0 },
+  { "r58", 58, REG_AC, 0 }, { "r59", 59, REG_AC, 0 },
   { "lp_count", 60, REG_AC, 0 }, { "r60", 60, REG_AC, 0 },
   { "pcl", 63, REG_AC, ARC_REGISTER_READONLY },
   { "r63", 63, REG_AC, ARC_REGISTER_READONLY },
@@ -5481,6 +5515,7 @@ ac_register_operand (const struct arc_operand *op)
       case 140: /* G5 */
       case '=': /* A 64 */
       case '_': /* A 64 */
+      case ';': /* A 64 */
         return 1;
     }
     return 0;
