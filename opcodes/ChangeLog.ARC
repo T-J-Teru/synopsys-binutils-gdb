@@ -1,3 +1,44 @@
+2014-03-26 Claudiu Zissulescu <claziss@synopsys.com>
+
+       * arc-opc-old.c (insert_reg): Handle SDA symbols by ld<zz>
+         instructions (prefetch type instructions).
+
+2014-03-20 Claudiu Zissulescu <claziss@synopsys.com>
+
+       * arc-em.h: Allow swi instruction for ARC 700 architecture.
+       * arc-opc-old.c (insert_reg): Insert aux register values into
+         s12 and u6 instruction's fields.
+
+2014-02-05 Claudiu Zissulescu <claziss@synopsys.com>
+
+       * arc-opc-old.c (arc_reg_names_em): Add r58 and r59 to be used
+         by ARCv2 as ACCL and ACCH.
+
+2014-01-22 Claudiu Zissulescu <claziss@synopsys.com>
+
+       * arc-em.h : Fix order DIV/DIVU, add HS floating point instructions.
+       * arcompact-dis.c: Decode HS floating point instructions.
+
+2013-12-18 Claudiu Zissulescu <claziss@synopsys.com>
+
+       * arc-em.h: Fix AEX pattern to accept auxiliary registers.
+
+2013-12-17 Claudiu Zissulescu <claziss@synopsys.com>
+
+       * arcompact-dis.c: Add HS instructions.
+
+2013-12-16 Claudiu Zissulescu <claziss@synopsys.com>
+
+       * arc-em.h: Add VADD2H instruction.
+
+2013-12-11 Claudiu Zissulescu <claziss@synopsys.com>
+
+       * arc-opc-old.c: Add modifiers for 64 bit operands.
+       * arc-em.h: Add DMACWH, DMACWHU, DMPYWH, DMPYWHU, MACD, MACDU,
+         MPYD, MPYDU, QMACH, QMACHU, QMPYH, QMPYHU, VADD2, VADD4H,
+         VADDSUB, VADDSUB4H,VMPY2H, VMPY2HU, VSUB2, VSUB4H, VSUBADD,
+         VSUBADD4H HS instructions.
+
 2014-08-21 Claudiu Zissulescu <claziss@synopsys.com>
 
        * arc-em.h: Add PREALLOC, VMAC2H, and VMAC2HU instructions.
