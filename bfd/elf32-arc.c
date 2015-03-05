@@ -4235,6 +4235,21 @@ elf32_arc_gc_sweep_hook (bfd *                     abfd,
 	}
     }
 
+  /* The following code is an attempt to work around an issue caused by ARC
+     creating its dynamic sections earlier in the linking process than
+     other targets (like arc, x86-64, etc).  On other targets the dynamic
+     sections are not created until after garbage collections has taken
+     place, and so, we only create the sections that we need.  For ARC we
+     create them early, and so end up creating sections that we will
+     eventually not need.  This code ensure that the dynamic sections
+     corresponding to garbage collected sections are also removed.  */
+  if (elf_section_data (sec)->sreloc)
+    {
+      asection *sreloc = elf_section_data (sec)->sreloc;
+      elf_section_data (sec)->sreloc = NULL;
+      sreloc->flags |= SEC_EXCLUDE;
+    }
+
   return TRUE;
 }
 
