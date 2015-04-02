@@ -1,3 +1,8 @@
+2015-04-02  Andrew Burgess  <andrew.burgess@embecosm.com>
+
+	* reloc.c: Escape '@' in doc string of relocations.
+	* bfd-in2.h: Regenerate.
+
 2015-03-26  Claudiu Zissulescu  <claziss@synopsys.com>
 
 	* elf32-arc.c: Add R_ARC_SDA16_ST2, R_ARC_SDA_12,
